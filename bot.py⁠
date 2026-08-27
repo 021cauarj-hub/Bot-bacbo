@@ -1,0 +1,99 @@
+import asyncio
+import random
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+
+# Token gerado pelo BotFather
+TOKEN = "8953706032:AAHf6rvPTobu6CZFPGx3kD2pacIiNwjjyzg"
+
+# Histórico inicial simulado
+historico_bacbo = []
+
+def analisar_padrao_ia(historico):
+    if len(historico) < 3:
+        return random.choice(["Azul 🔵", "Vermelho 🔴"]), 70.0
+
+    ultimos_3 = historico[-3:]
+    
+    # Estratégias de quebra e alternância
+    if ultimos_3 == ["B", "B", "B"]:
+        return "Azul 🔵", 87.5
+    elif ultimos_3 == ["P", "P", "P"]:
+        return "Vermelho 🔴", 87.5
+    
+    if ultimos_3 == ["B", "P", "B"]:
+        return "Azul 🔵", 82.0
+    elif ultimos_3 == ["P", "B", "P"]:
+        return "Vermelho 🔴", 82.0
+
+    contagem_p = historico.count("P")
+    contagem_b = historico.count("B")
+    
+    if contagem_b > contagem_p:
+        return "Vermelho 🔴", 75.0
+    else:
+        return "Azul 🔵", 75.0
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [InlineKeyboardButton("🎯 Gerar Sinal Bac Bo", callback_data="gerar_sinal")],
+        [InlineKeyboardButton("📊 Gerar Histórico Simulado", callback_data="simular_historico")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        "🎰 **Bot de IA para Bac Bo Ativo 24/7!**\n\n"
+        "Escolha uma opção no menu abaixo para começar:",
+        reply_markup=reply_markup,
+        parse_mode="Markdown"
+    )
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    global historico_bacbo
+
+    if query.data == "simular_historico":
+        opcoes = ["P", "B", "P", "B", "T", "B", "B"]
+        historico_bacbo = [random.choice(opcoes) for _ in range(10)]
+        
+        simbolo_map = {"P": "🔵", "B": "🔴", "T": "🟡"}
+        historico_visual = " ".join([simbolo_map[h] for h in historico_bacbo])
+        
+        await query.message.reply_text(
+            f"📥 **Histórico Atualizado:**\n{historico_visual}\n\nJá pode solicitar a análise!"
+        )
+
+    elif query.data == "gerar_sinal":
+        if not historico_bacbo:
+            historico_bacbo = [random.choice(["P", "B"]) for _ in range(5)]
+
+        direcao, assertividade = analisar_padrao_ia(historico_bacbo)
+
+        mensagem_sinal = (
+            "🚨 **SINAL CONFIRMADO - BAC BO** 🚨\n\n"
+            f"🎯 **Apostar em:** {direcao}\n"
+            f"🛡️ **Proteção:** Empate 🟡\n"
+            f"📊 **Assertividade estimada:** {assertividade}%\n"
+            f"⏰ **Gales recomendados:** Até Gale 1\n\n"
+            "⚠️ *Aposte com responsabilidade!*"
+        )
+
+        resultado_simulado = "B" if "Vermelho" in direcao else "P"
+        historico_bacbo.append(resultado_simulado)
+        if len(historico_bacbo) > 15:
+            historico_bacbo.pop(0)
+
+        await query.message.reply_text(mensagem_sinal, parse_mode="Markdown")
+
+def main():
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(button_handler))
+
+    print("Bot rodando...")
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
